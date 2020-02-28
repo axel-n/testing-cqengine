@@ -1,5 +1,7 @@
 package com.example.testing_cqengine;
 
+import com.example.testing_cqengine.data.ExchangeOrder;
+import com.example.testing_cqengine.data.Status;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
@@ -15,46 +17,56 @@ import java.util.UUID;
 public class RunMockProcessing {
 
     @Bean
-    public CommandLineRunner run(TransactionRepository transactionRepository) {
+    public CommandLineRunner run(SaveOrdersService saveOrdersService) {
         return (args) -> {
 
-            // emulate load stored data
-            List<Transaction> successTransactions = createSuccessTransactions();
-            transactionRepository.saveAll(successTransactions);
+            List<ExchangeOrder> loadedOrders = emulateLoadOrders();
+            log.info("loadedOrders size {}", loadedOrders.size());
+
+            loadedOrders.forEach(saveOrdersService::save);
+
+            log.info("data saved");
+
+
+//            IndexedCollection<Order> cachedOrders = new ConcurrentIndexedCollection<>(WrappingPersistence.aroundCollection(loadedOrders));
+//            cachedOrders.addIndex(UniqueIndex.onAttribute(Order.INTERNAL_ID));
+
 
         };
     }
 
-    private List<Transaction> createSuccessTransactions() {
+    private List<ExchangeOrder> emulateLoadOrders() {
 
-        List<Transaction> successTransactions = new ArrayList<>();
+        List<ExchangeOrder> orders = new ArrayList<>();
 
-        for (int i = 0; i < 1_000; i++) {
+        for (int i = 0; i < 10_000; i++) {
 
-            Transaction transaction = createNewTransaction();
-            successTransactions.add(transaction);
+            ExchangeOrder order = createNewOrder();
+            orders.add(order);
 
-            transaction.setUpdatedAt(System.currentTimeMillis());
-            transaction.setStatus(Status.PROCESSING);
-            successTransactions.add(transaction);
+            order.setId(UUID.randomUUID().toString());
+            order.setUpdatedAt(System.currentTimeMillis());
+            order.setStatus(Status.PART_FILLED);
+            orders.add(order);
 
-            transaction.setUpdatedAt(System.currentTimeMillis());
-            transaction.setStatus(Status.SUCCESS);
-            successTransactions.add(transaction);
+            order.setId(UUID.randomUUID().toString());
+            order.setUpdatedAt(System.currentTimeMillis());
+            order.setStatus(Status.FULL_FILLED);
+            orders.add(order);
         }
 
-        return successTransactions;
+        return orders;
     }
 
-    private Transaction createNewTransaction() {
-        Transaction transaction = new Transaction();
-        transaction.setAmount(generateRandomInRange(100, 10_000));
-        transaction.setStatus(Status.NEW);
-        transaction.setInternalId(UUID.randomUUID().toString());
-        transaction.setExternalId(UUID.randomUUID().toString());
-        transaction.setCreateAt(System.currentTimeMillis());
-
-        return transaction;
+    private ExchangeOrder createNewOrder() {
+        ExchangeOrder order = new ExchangeOrder();
+        order.setId(UUID.randomUUID().toString());
+        order.setInternalId(UUID.randomUUID().toString());
+        order.setExternalId(UUID.randomUUID().toString());
+        order.setCreateAt(System.currentTimeMillis());
+        order.setAmount(generateRandomInRange(100, 10_000));
+        order.setStatus(Status.ACCEPTED);
+        return order;
     }
 
     private double generateRandomInRange(int min, int max) {
